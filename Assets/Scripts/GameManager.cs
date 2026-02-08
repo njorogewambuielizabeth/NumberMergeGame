@@ -36,7 +36,7 @@ public class GameManager : MonoBehaviour
     }
 
     [Header("Debug")]
-    public bool autoStart = true;
+    public bool autoStart = false;
 
     private void Start()
     {

@@ -36,6 +36,7 @@ public class SoundManager : MonoBehaviour
         {
             sfxSource = gameObject.AddComponent<AudioSource>();
             sfxSource.playOnAwake = false;
+            sfxSource.spatialBlend = 0; // Force 2D for reliability
         }
 
         if (musicSource == null)
@@ -43,25 +44,40 @@ public class SoundManager : MonoBehaviour
             musicSource = gameObject.AddComponent<AudioSource>();
             musicSource.playOnAwake = true;
             musicSource.loop = true;
+            musicSource.spatialBlend = 0;
         }
     }
 
-    public void PlaySpawn() => PlaySFX(spawnClip);
-    public void PlayDrop() => PlaySFX(dropClip);
-    public void PlayMerge() => PlaySFX(mergeClip);
-    public void PlayGameOver() => PlaySFX(gameOverClip);
-    public void PlayClick() => PlaySFX(clickClip);
+    // Call this on first click to "wake up" audio on mobile/web browsers
+    public void ResumeAudioContext()
+    {
+        // Removed the dspTime < 0.1f check which was likely blocking the wake-up
+        Debug.Log("<color=cyan>[SOUND] Attempting to wake up AudioContext...</color>");
+        
+        // Ensure AudioSource is enabled
+        if (sfxSource != null) 
+        {
+            sfxSource.enabled = true;
+            if (clickClip != null) sfxSource.PlayOneShot(clickClip); // Force a noise to wake it
+        }
+    }
 
-    private void PlaySFX(AudioClip clip)
+    public void PlaySpawn() => PlaySFX(spawnClip, "Spawn");
+    public void PlayDrop() => PlaySFX(dropClip, "Drop");
+    public void PlayMerge() => PlaySFX(mergeClip, "Merge");
+    public void PlayGameOver() => PlaySFX(gameOverClip, "GameOver");
+    public void PlayClick() => PlaySFX(clickClip, "Click");
+
+    private void PlaySFX(AudioClip clip, string actionName)
     {
         if (clip != null && sfxSource != null)
         {
+            Debug.Log($"<color=green>[SOUND] Playing {actionName}: {clip.name}</color>");
             sfxSource.PlayOneShot(clip);
         }
         else
         {
-            // Fallback for debugging if clips aren't assigned yet
-            Debug.Log($"Playing SFX: {(clip != null ? clip.name : "Unassigned Clip")}");
+            Debug.LogWarning($"<color=red>[SOUND ERROR] Cannot play {actionName}! Clip={clip}, Source={sfxSource}</color>");
         }
     }
 }

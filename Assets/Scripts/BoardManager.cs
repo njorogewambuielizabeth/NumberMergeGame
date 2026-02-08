@@ -255,32 +255,138 @@ public class BoardManager : MonoBehaviour
 
     IEnumerator MergeRoutine(int col, int row)
     {
-        if (row <= 0) yield break;
-
         Tile current = grid[col, row];
-        Tile below = grid[col, row - 1];
+        if (current == null) yield break;
 
-        if (current == null || below == null) yield break;
-
-        bool shouldMerge = false;
-        int newValue = 0;
-
-        if (current.isWildcard) { shouldMerge = true; newValue = below.Value * 2; }
-        else if (below.isWildcard) { shouldMerge = true; newValue = current.Value * 2; }
-        else if (current.Value == below.Value) { shouldMerge = true; newValue = current.Value * 2; }
-
-        if (shouldMerge)
+        List<Vector2Int> matches = GetMatches(col, row);
+        if (matches.Count > 0)
         {
-            below.UpdateValue(newValue);
-            Destroy(current.gameObject);
-            grid[col, row] = null;
-            GameManager.Instance.AddScore(newValue);
+            int startingValue = current.Value;
+            int matchesCount = 0;
+
+            foreach (var matchPos in matches)
+            {
+                Tile neighbor = grid[matchPos.x, matchPos.y];
+                if (neighbor == null) continue;
+
+                // Simple merge rule: each match doubles the value (or triples if we matched 2 at once etc)
+                // In most of these games, 2 + 2 = 4. 2 + 2 + 2 = 8? 
+                // Let's follow a "doubling for each match found" rule for satisfying scores.
+                if (current.isWildcard) startingValue = neighbor.Value * 2;
+                else if (neighbor.isWildcard) startingValue *= 2;
+                else startingValue *= 2; 
+
+                Destroy(neighbor.gameObject);
+                grid[matchPos.x, matchPos.y] = null;
+                matchesCount++;
+            }
+
+            current.UpdateValue(startingValue);
+            GameManager.Instance.AddScore(startingValue);
             
             if (SoundManager.Instance != null) SoundManager.Instance.PlayMerge();
 
-            yield return new WaitForSeconds(0.1f);
-            yield return MergeRoutine(col, row - 1);
+            yield return new WaitForSeconds(0.15f);
+
+            // Tiles above must fall down
+            yield return ApplyGravity();
+
+            // After falling, find where our 'current' tile ended up to check for chain merges
+            Vector2Int newPos = FindTile(current);
+            if (newPos.x != -1)
+            {
+                yield return MergeRoutine(newPos.x, newPos.y);
+            }
         }
+    }
+
+    private List<Vector2Int> GetMatches(int col, int row)
+    {
+        List<Vector2Int> matches = new List<Vector2Int>();
+        Tile current = grid[col, row];
+        if (current == null) return matches;
+
+        // 8 Directions: Up, Down, Left, Right, and Diagonals
+        int[] dx = { 0, 0, -1, 1, -1, 1, -1, 1 };
+        int[] dy = { 1, -1, 0, 0, 1, 1, -1, -1 };
+
+        for (int i = 0; i < 8; i++)
+        {
+            int nx = col + dx[i];
+            int ny = row + dy[i];
+
+            if (nx >= 0 && nx < columns && ny >= 0 && ny < rows)
+            {
+                Tile neighbor = grid[nx, ny];
+                if (neighbor != null)
+                {
+                    // Match if values are equal OR either is a wildcard
+                    if (current.isWildcard || neighbor.isWildcard || current.Value == neighbor.Value)
+                    {
+                        matches.Add(new Vector2Int(nx, ny));
+                    }
+                }
+            }
+        }
+        return matches;
+    }
+
+    private IEnumerator ApplyGravity()
+    {
+        bool anyMoved = false;
+        for (int x = 0; x < columns; x++)
+        {
+            int emptySpot = -1;
+            for (int y = 0; y < rows; y++)
+            {
+                if (grid[x, y] == null)
+                {
+                    if (emptySpot == -1) emptySpot = y;
+                }
+                else
+                {
+                    if (emptySpot != -1)
+                    {
+                        Tile t = grid[x, y];
+                        grid[x, emptySpot] = t;
+                        grid[x, y] = null;
+                        
+                        // Local animation for smooth falling
+                        StartCoroutine(AnimateTileFall(t, x, emptySpot));
+                        
+                        emptySpot++;
+                        anyMoved = true;
+                    }
+                }
+            }
+        }
+
+        if (anyMoved) yield return new WaitForSeconds(0.2f);
+    }
+
+    private IEnumerator AnimateTileFall(Tile t, int col, int row)
+    {
+        RectTransform rt = t.GetComponent<RectTransform>();
+        Vector2 startPos = rt.anchoredPosition;
+        Vector2 targetPos = new Vector2(GetColumnX(col), GetRowY(row));
+        
+        float dur = 0.15f;
+        float elapsed = 0f;
+        while (elapsed < dur)
+        {
+            elapsed += Time.deltaTime;
+            rt.anchoredPosition = Vector2.Lerp(startPos, targetPos, elapsed / dur);
+            yield return null;
+        }
+        rt.anchoredPosition = targetPos;
+    }
+
+    private Vector2Int FindTile(Tile t)
+    {
+        for (int x = 0; x < columns; x++)
+            for (int y = 0; y < rows; y++)
+                if (grid[x, y] == t) return new Vector2Int(x, y);
+        return new Vector2Int(-1, -1);
     }
 
     // --- Helpers ---

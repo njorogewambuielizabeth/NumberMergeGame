@@ -143,7 +143,11 @@ public class UIManager : MonoBehaviour
     // Called by UI Button
     public void OnPlayButtonClicked()
     {
-        if (SoundManager.Instance != null) SoundManager.Instance.PlayClick();
+        if (SoundManager.Instance != null) 
+        {
+            SoundManager.Instance.ResumeAudioContext();
+            SoundManager.Instance.PlayClick();
+        }
         GameManager.Instance.StartGame();
     }
 
@@ -196,6 +200,80 @@ public class UIManager : MonoBehaviour
         bestPanel.transform.Find("TitleText").GetComponent<TextMeshProUGUI>().color = new Color32(0, 255, 180, 255);
 
         CreateCircleButton(topBar.transform, "Btn_Restart", "R", true);
+
+        // 3. Main Menu Overlay (The "Play Button like Unity Hub")
+        mainMenuPanel = new GameObject("MainMenu_Generated", typeof(RectTransform), typeof(Image));
+        mainMenuPanel.transform.SetParent(canvas.transform, false);
+        var menuRt = mainMenuPanel.GetComponent<RectTransform>();
+        menuRt.anchorMin = Vector2.zero;
+        menuRt.anchorMax = Vector2.one;
+        menuRt.sizeDelta = Vector2.zero;
+        
+        mainMenuPanel.GetComponent<Image>().color = new Color32(30, 30, 30, 255); // Solid Opacity for reliability
+        mainMenuPanel.transform.SetAsLastSibling();
+
+        GameObject playBtnObj = new GameObject("PlayButton", typeof(RectTransform), typeof(Image), typeof(Button));
+        playBtnObj.transform.SetParent(mainMenuPanel.transform, false);
+        var playRt = playBtnObj.GetComponent<RectTransform>();
+        playRt.sizeDelta = new Vector2(400, 150);
+        playRt.anchoredPosition = Vector2.zero;
+        
+        playBtnObj.GetComponent<Image>().color = new Color32(255, 100, 100, 255);
+        playBtnObj.GetComponent<Button>().onClick.AddListener(OnPlayButtonClicked);
+
+        GameObject playTxtObj = new GameObject("Text", typeof(RectTransform), typeof(TextMeshProUGUI));
+        playTxtObj.transform.SetParent(playBtnObj.transform, false);
+        var playTxt = playTxtObj.GetComponent<TextMeshProUGUI>();
+        playTxt.text = "PLAY";
+        playTxt.fontSize = 60;
+        playTxt.alignment = TextAlignmentOptions.Center;
+        playTxt.color = Color.white;
+        playTxt.fontStyle = FontStyles.Bold;
+        playTxt.rectTransform.anchorMin = Vector2.zero;
+        playTxt.rectTransform.anchorMax = Vector2.one;
+
+        // 4. GameOver Overlay
+        gameOverPanel = new GameObject("GameOver_Generated", typeof(RectTransform), typeof(Image));
+        gameOverPanel.transform.SetParent(canvas.transform, false);
+        var goRt = gameOverPanel.GetComponent<RectTransform>();
+        goRt.anchorMin = Vector2.zero;
+        goRt.anchorMax = Vector2.one;
+        goRt.sizeDelta = Vector2.zero;
+        gameOverPanel.GetComponent<Image>().color = new Color32(100, 30, 30, 230);
+        gameOverPanel.SetActive(false);
+
+        GameObject goTxtObj = new GameObject("Text", typeof(RectTransform), typeof(TextMeshProUGUI));
+        goTxtObj.transform.SetParent(gameOverPanel.transform, false);
+        var goTxt = goTxtObj.GetComponent<TextMeshProUGUI>();
+        goTxt.text = "GAME OVER";
+        goTxt.fontSize = 80;
+        goTxt.alignment = TextAlignmentOptions.Center;
+        goTxt.rectTransform.anchoredPosition = new Vector2(0, 100);
+
+        GameObject scoreLabel = new GameObject("ScoreLabel", typeof(RectTransform));
+        scoreLabel.transform.SetParent(gameOverPanel.transform, false);
+        finalScoreText = scoreLabel.AddComponent<TextMeshProUGUI>();
+        finalScoreText.text = "0";
+        finalScoreText.fontSize = 120;
+        finalScoreText.alignment = TextAlignmentOptions.Center;
+
+        GameObject restartBtnObj = new GameObject("GameOverRestart", typeof(RectTransform), typeof(Image), typeof(Button));
+        restartBtnObj.transform.SetParent(gameOverPanel.transform, false);
+        var reRt = restartBtnObj.GetComponent<RectTransform>();
+        reRt.sizeDelta = new Vector2(300, 100);
+        reRt.anchoredPosition = new Vector2(0, -200);
+        restartBtnObj.GetComponent<Image>().color = Color.white;
+        restartBtnObj.GetComponent<Button>().onClick.AddListener(OnRestartButtonClicked);
+        
+        GameObject reTxtObj = new GameObject("Txt", typeof(RectTransform), typeof(TextMeshProUGUI));
+        reTxtObj.transform.SetParent(restartBtnObj.transform, false);
+        var reTxt = reTxtObj.GetComponent<TextMeshProUGUI>();
+        reTxt.text = "RESTART";
+        reTxt.fontSize = 40;
+        reTxt.color = Color.black;
+        reTxt.alignment = TextAlignmentOptions.Center;
+        reTxt.rectTransform.anchorMin = Vector2.zero;
+        reTxt.rectTransform.anchorMax = Vector2.one;
     }
 
     GameObject CreateCircleButton(Transform parent, string name, string symbol, bool isRestart = false)
